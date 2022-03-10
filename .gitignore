@@ -8,6 +8,8 @@
 # Credentials
 .aws
 
+# Idea
+.idea
 
 # .tfstate files
 *.tfstate
