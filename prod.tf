@@ -38,3 +38,26 @@ resource "aws_security_group" "prod_web" {
     "Terraform" : "true"
   }
 }
+
+# This was a nginx instance chosen from the marketplace.
+resource "aws_instance" "prod_web" {
+  ami         = "ami-023cd9fc317ea7e5d"
+  instance_type = "t2.micro"
+
+  vpc_security_group_ids = [
+    aws_security_group.prod_web.id
+  ]
+
+  tags = {
+    "Terraform": "true"
+  }
+}
+
+# Provision a static IP = eip (AWS Elastic IP)
+resource "aws_eip" "prod_web" {
+  instance = aws_instance.prod_web.id
+
+  tags = {
+    "Terraform": "true"
+  }
+}
