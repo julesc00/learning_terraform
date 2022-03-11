@@ -57,39 +57,9 @@ resource "aws_security_group" "prod_web" {
   }
 }
 
-# This is a nginx instance chosen from the marketplace.
-resource "aws_instance" "prod_web" {
-  count = 2
-
-  ami           = "ami-023cd9fc317ea7e5d"
-  instance_type = "t2.micro"
-
-  vpc_security_group_ids = [
-    aws_security_group.prod_web.id
-  ]
-
-  tags = {
-    "Terraform": "true"
-  }
-}
-
-# Provision a static IP = eip (AWS Elastic IP)
-# Decoupling creating of the IP and its assignment
-resource "aws_eip_association" "prod_web" {
-  instance_id = aws_instance.prod_web.0.id
-  allocation_id = aws_eip.prod_web.id
-}
-
-resource "aws_eip" "prod_web" {
-  tags = {
-    "Terraform": "true"
-  }
-}
-
-# Load Balances resources --Start--
+# Load Balancer resources --Start--
 resource "aws_elb" "prod_web" {
   name                = "prod-web"
-  instances           = aws_instance.prod_web.*.id
   subnets             = [aws_default_subnet.default_az1.id, aws_default_subnet.default_az2.id]
   security_groups     = [aws_security_group.prod_web.id]
 
@@ -104,3 +74,38 @@ resource "aws_elb" "prod_web" {
     "Terraform": "true"
   }
 }
+# Load Balancer resources --End--
+
+# Challenge Auto Scaling Group (ASG) ---Start---
+resource "aws_launch_template" "prod_web" {
+  name_prefix = "prod-web"
+  image_id = "ami-023cd9fc317ea7e5d"
+  instance_type = "t2.micro"
+
+  tags = {
+    "Terraform": "true"
+  }
+}
+
+resource "aws_autoscaling_group" "prod_web" {
+  desired_capacity    = 1
+  max_size            = 1
+  min_size            = 1
+  vpc_zone_identifier = [aws_default_subnet.default_az1.id, aws_default_subnet.default_az2.id]
+
+  launch_template {
+    id  = aws_launch_template.prod_web.id
+    version = "$Latest"
+  }
+  tag {
+    key                 = "Terraform"
+    propagate_at_launch = true
+    value               = "true"
+  }
+}
+
+resource "aws_autoscaling_attachment" "prod_web" {
+  autoscaling_group_name = aws_autoscaling_group.prod_web.id
+  elb = aws_elb.prod_web.id
+}
+# Challenge Auto Scaling Group (ASG) ---End---
