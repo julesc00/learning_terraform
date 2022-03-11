@@ -39,9 +39,11 @@ resource "aws_security_group" "prod_web" {
   }
 }
 
-# This was a nginx instance chosen from the marketplace.
+# This is a nginx instance chosen from the marketplace.
 resource "aws_instance" "prod_web" {
-  ami         = "ami-023cd9fc317ea7e5d"
+  count = 2
+
+  ami           = "ami-023cd9fc317ea7e5d"
   instance_type = "t2.micro"
 
   vpc_security_group_ids = [
@@ -54,9 +56,13 @@ resource "aws_instance" "prod_web" {
 }
 
 # Provision a static IP = eip (AWS Elastic IP)
-resource "aws_eip" "prod_web" {
-  instance = aws_instance.prod_web.id
+# Decoupling creating of the IP and its assignment
+resource "aws_eip_association" "prod_web" {
+  instance_id = aws_instance.prod_web.0.id
+  allocation_id = aws_eip.prod_web.id
+}
 
+resource "aws_eip" "prod_web" {
   tags = {
     "Terraform": "true"
   }
